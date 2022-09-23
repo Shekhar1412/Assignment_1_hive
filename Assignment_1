@@ -82,12 +82,11 @@ year_id total_sales
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 b. Find a product for which maximum orders were placed
 
-hive> create view sales_order_maxOrderedProduct_view( product_code , num_orders) as select PRODUCTCODE,count(*) from sales_order_orc group by PRODUCTCODE;
-hive> select * from sales_order_maxOrderedProduct_view order by num_orders desc limit 1;
+hive> with cpp as ( select  productcode, count(*) total_count from sales_order_orc group by productcode), maxt as(select max(total_count) as maxcount from cpp) select * from cpp join maxt on cpp.total_count = maxt.maxcount;
 
 #output
-sales_order_maxorderedproduct_view.product_code sales_order_maxorderedproduct_view.num_orders
-S18_3232        52
+cpp.productcode cpp.total_count maxt.maxcount
+S18_3232        52      52
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 c. Calculate the total sales for each quarter
 
@@ -103,11 +102,10 @@ qtr_id  total_sales
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 d. In which quarter sales was minimum
 
-hive> create view sales_order_qtr_min_sales_view (qtr_id,total_sales) as select qtr_id, sum(sales) from sales_order_orc group by qtr_id;
-hive> select * from  sales_order_qtr_min_sales_view order by total_sales limit 1;
+with sales_per_quarter as (select qtr_id, sum(sales) as total_sales from sales_order_orc group by qtr_id), min_quarter as (select min(total_sales) min_sales from sales_per_quarter) select qtr_id,min_sales from sales_per_quarter s inner join min_quarter m on s.total_sales = m.min_sales;
 
 #output
-sales_order_qtr_min_sales_view.qtr_id   sales_order_qtr_min_sales_view.total_sales
+qtr_id  min_sales
 3       1758910.808959961
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -116,16 +114,17 @@ e. In which country sales was maximum and in which country sales was minimum
 hive> create view sales_order_country_view (country,total_sales) as select COUNTRY, sum(sales) from sales_order_orc group by COUNTRY;
 
 #minimum sales
-hive> select * from  sales_order_country_view order by total_sales limit 1;
+hive> with sales_per_country as (select country, sum(sales) as total_sales from sales_order_orc group by country), min_quarter as (select min(total_sales) min_sales from sales_per_country) select country,min_sales from sales_per_country s inner join min_quarter m on s.total_sales = m.min_sales;
+
 #output
-sales_order_country_view.country        sales_order_country_view.total_sales
+country min_sales
 Ireland 57756.43029785156
 
-
 #maximum sales
-select * from  sales_order_country_view order by total_sales desc limit
+hive> with sales_per_country as (select country, sum(sales) as total_sales from sales_order_orc group by country), min_quarter as (select max(total_sales) max_sales from sales_per_country) select country,max_sales from sales_per_country s inner join min_quarter m on s.total_sales = m.max_sales;
+
 #output
-sales_order_country_view.country        sales_order_country_view.total_sales
+country max_sales
 USA     3627982.825744629
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 f. Calculate quartelry sales for each city
@@ -320,6 +319,10 @@ White Plains    4       85555.98962402344
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 h. Find a month for each year in which maximum number of quantities were sold
 
+with my as(select year_id,month_id,sum(quantityordered) as tot_qty from sales_order_orc group by year_id,month_id), my2 as(select year_id, max(tot_qty) as max_sales from my group by year_id) select my2.year_id,month_id,max_sales from my inner join my2 on my.tot_qty = my2.max_sales;
 
-
-
+#output
+my2.year_id     month_id        max_sales
+2003    11      10179
+2004    11      10678
+2005    5       4357
